@@ -90,6 +90,11 @@ nnoremap <Right> :echoe "Use l"<CR>
 nnoremap <Up>    :echoe "Use k"<CR>
 nnoremap <Down>  :echoe "Use j"<CR>
 " ...and in insert mode
+set backspace=2
+" inoremap <C-j> <Left>
+" inoremap <C-l> <Right>
+" inoremap <C-i> <Up>
+" inoremap <C-k> <Down>
 inoremap <Left>  <ESC>:echoe "Use h"<CR>
 inoremap <Right> <ESC>:echoe "Use l"<CR>
 inoremap <Up>    <ESC>:echoe "Use k"<CR>
@@ -167,4 +172,5 @@ Plug 'git@github.com:ctrlpvim/ctrlp.vim.git'
 Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
 Plug 'preservim/nerdcommenter'
+Plug 'Valloric/YouCompleteMe'
 call plug#end()
