@@ -169,9 +169,10 @@ Plug 'git@github.com:preservim/nerdtree.git'
 " Plug 'git://github.com/mileszs/ack.vim'
 Plug 'git@github.com:ctrlpvim/ctrlp.vim.git'
 " Plug 'jiangmiao/auto-pairs'
-Plug 'vim-airline/vim-airline'
-Plug 'vim-airline/vim-airline-themes'
-Plug 'preservim/nerdcommenter'
-Plug 'Valloric/YouCompleteMe'
-Plug 'dense-analysis/ale'
+Plug 'vim-airline/vim-airline'	" vim 主题
+Plug 'vim-airline/vim-airline-themes'	" vim 主题库
+Plug 'preservim/nerdcommenter'	" 快速注释
+Plug 'Valloric/YouCompleteMe'	" 代码自动补全
+Plug 'dense-analysis/ale'	" code linting
+Plug 'neomake/neomake'	" vim-shellcheck
 call plug#end()
