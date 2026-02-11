@@ -181,42 +181,42 @@ install_chezmoi_macos() {
 
 install_chezmoi_linux() {
   if command -v apt-get >/dev/null 2>&1; then
-    $SUDO apt-get update
-    $SUDO apt-get install -y chezmoi
-    return 0
+    $SUDO apt-get update || true
+    $SUDO apt-get install -y chezmoi || true
+    command -v chezmoi >/dev/null 2>&1 && return 0
   fi
   if command -v dnf >/dev/null 2>&1; then
-    $SUDO dnf install -y chezmoi
-    return 0
+    $SUDO dnf install -y chezmoi || true
+    command -v chezmoi >/dev/null 2>&1 && return 0
   fi
   if command -v yum >/dev/null 2>&1; then
-    $SUDO yum install -y chezmoi
-    return 0
+    $SUDO yum install -y chezmoi || true
+    command -v chezmoi >/dev/null 2>&1 && return 0
   fi
   if command -v pacman >/dev/null 2>&1; then
-    $SUDO pacman -Sy --noconfirm chezmoi
-    return 0
+    $SUDO pacman -Sy --noconfirm chezmoi || true
+    command -v chezmoi >/dev/null 2>&1 && return 0
   fi
   if command -v zypper >/dev/null 2>&1; then
-    $SUDO zypper --non-interactive install chezmoi
-    return 0
+    $SUDO zypper --non-interactive install chezmoi || true
+    command -v chezmoi >/dev/null 2>&1 && return 0
   fi
   if command -v apk >/dev/null 2>&1; then
-    $SUDO apk add --no-cache chezmoi
-    return 0
+    $SUDO apk add --no-cache chezmoi || true
+    command -v chezmoi >/dev/null 2>&1 && return 0
   fi
   if command -v brew >/dev/null 2>&1; then
-    brew install chezmoi
-    return 0
+    brew install chezmoi || true
+    command -v chezmoi >/dev/null 2>&1 && return 0
   fi
 
   if command -v curl >/dev/null 2>&1; then
-    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
-    return 0
+    sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" || true
+    command -v chezmoi >/dev/null 2>&1 && return 0
   fi
   if command -v wget >/dev/null 2>&1; then
-    sh -c "$(wget -qO- get.chezmoi.io)" -- -b "$HOME/.local/bin"
-    return 0
+    sh -c "$(wget -qO- get.chezmoi.io)" -- -b "$HOME/.local/bin" || true
+    command -v chezmoi >/dev/null 2>&1 && return 0
   fi
 
   return 1
