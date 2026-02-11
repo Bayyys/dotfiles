@@ -92,6 +92,15 @@ set noerrorbells visualbell t_vb=
 " 鼠标有效。
 set mouse+=a
 
+" Cursor shape: block in Normal mode, bar in Insert mode.
+if has("termguicolors")
+  set termguicolors
+endif
+
+" 光标样式
+let &t_SI = "\e[6 q"  " insert: 竖线
+let &t_EI = "\e[2 q"  " normal: 方块
+
 " 高亮光标所在行。
 set cursorline
 
