@@ -27,12 +27,38 @@ Notes:
 
 ## Usage
 
-### Using chezmoi
+### One-command bootstrap (recommended)
+
+```bash
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/Bayyys/dotfiles/master/bootstrap.sh)"
+```
+
+If `curl` is unavailable:
+
+```bash
+sh -c "$(wget -qO- https://raw.githubusercontent.com/Bayyys/dotfiles/master/bootstrap.sh)"
+
+`bootstrap.sh` installs `chezmoi` by OS policy:
+- macOS: Homebrew (`brew install chezmoi`)
+- Linux: tries `apt/dnf/yum/pacman/zypper/apk/brew`, then falls back to official install script
+```
+
+### Bootstrap via git
+
+```bash
+git clone https://github.com/Bayyys/dotfiles.git
+cd dotfiles
+./bootstrap.sh
+```
+
+### Manual chezmoi flow
 
 ```bash
 chezmoi init <repo-url>
 chezmoi apply
 ```
+
+On first apply, `run_once_10_install_cli_tools.sh.tmpl` and `run_once_20_install_vim_plugins.sh.tmpl` will run automatically.
 
 ### Update dotfiles
 
