@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() {
+  printf '[install-vim] %s\n' "$1"
+}
+
+print_section() {
+  printf '\n[install-vim] %s\n' "$1"
+}
+
+INSTALLED_ITEMS=()
+UPDATED_ITEMS=()
+SKIPPED_ITEMS=()
+FAILED_ITEMS=()
+
+record_installed() { INSTALLED_ITEMS+=("$1"); }
+record_updated() { UPDATED_ITEMS+=("$1"); }
+record_skipped() { SKIPPED_ITEMS+=("$1"); }
+record_failed() { FAILED_ITEMS+=("$1"); }
+
+print_list() {
+  local title="$1"
+  shift || true
+  print_section "$title"
+  if [ "$#" -eq 0 ]; then
+    echo "  - (none)"
+    return
+  fi
+  local item
+  for item in "$@"; do
+    echo "  - $item"
+  done
+}
+
+print_summary() {
+  print_section "Summary"
+  print_list "Installed" "${INSTALLED_ITEMS[@]}"
+  print_list "Updated" "${UPDATED_ITEMS[@]}"
+  print_list "Skipped" "${SKIPPED_ITEMS[@]}"
+  print_list "Failed" "${FAILED_ITEMS[@]}"
+}
+
+main() {
+  if ! command -v curl >/dev/null 2>&1; then
+    log "curl is required to install vim-plug"
+    record_failed "vim-plug install (curl missing)"
+    print_summary
+    return 1
+  fi
+
+  if ! command -v vim >/dev/null 2>&1; then
+    log "vim is not installed; skip vim-plug and plugin install"
+    record_skipped "vim plugin install (vim missing)"
+    print_summary
+    return 0
+  fi
+
+  local plug_path="$HOME/.vim/autoload/plug.vim"
+
+  if [ ! -f "$plug_path" ]; then
+    log "installing vim-plug"
+    curl -fLo "$plug_path" --create-dirs \
+      https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    record_installed "vim-plug"
+  else
+    record_skipped "vim-plug (already installed)"
+  fi
+
+  log "installing/updating Vim plugins from ~/.vimrc"
+  vim +'PlugInstall --sync' +qa
+  record_updated "vim plugins (PlugInstall --sync)"
+
+  print_summary
+}
+
+main "$@"

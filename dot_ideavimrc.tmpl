@@ -1,3 +1,4 @@
+{{- if eq .chezmoi.os "darwin" }}
 r -- Suggested options --
 
 " Show a few lines of context around the cursor. Note that this makes the
@@ -220,3 +221,4 @@ map <C-t> :action ActivateTerminalToolWindow<CR>
 nnoremap <C-h> <C-w>h
 " Shift+右键：切换到右侧编辑器
 nnoremap <C-l> <C-w>l
+{{- end }}

@@ -1,0 +1,417 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Re-enter with bash if script is launched by another shell.
+if [ -z "${BASH_VERSION:-}" ]; then
+  if command -v bash >/dev/null 2>&1; then
+    exec "$(command -v bash)" "$0" "$@"
+  fi
+  echo "[install-cli] bash is required to run this script" >&2
+  exit 1
+fi
+
+# ----------------------------
+# Logging and report utilities
+# ----------------------------
+
+log() {
+  printf '[install-cli] %s\n' "$1"
+}
+
+print_section() {
+  printf '\n[install-cli] %s\n' "$1"
+}
+
+has_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+INSTALLED_ITEMS=()
+UPDATED_ITEMS=()
+SKIPPED_ITEMS=()
+FAILED_ITEMS=()
+
+record_installed() { INSTALLED_ITEMS+=("$1"); }
+record_updated() { UPDATED_ITEMS+=("$1"); }
+record_skipped() { SKIPPED_ITEMS+=("$1"); }
+record_failed() { FAILED_ITEMS+=("$1"); }
+
+print_list() {
+  local title="$1"
+  shift || true
+  print_section "$title"
+  if [ "$#" -eq 0 ]; then
+    echo "  - (none)"
+    return
+  fi
+  local item
+  for item in "$@"; do
+    echo "  - $item"
+  done
+}
+
+print_summary() {
+  print_section "Summary"
+  print_list "Installed" "${INSTALLED_ITEMS[@]}"
+  print_list "Updated" "${UPDATED_ITEMS[@]}"
+  print_list "Skipped" "${SKIPPED_ITEMS[@]}"
+  print_list "Failed" "${FAILED_ITEMS[@]}"
+
+  if [ "${#FAILED_ITEMS[@]}" -gt 0 ]; then
+    log "completed with failures"
+    return 1
+  fi
+  log "completed successfully"
+}
+
+# ----------------------------
+# Environment and pkg manager
+# ----------------------------
+
+SUDO=""
+if [ "$(id -u)" -ne 0 ] && has_cmd sudo; then
+  SUDO="sudo"
+fi
+
+PKG_MANAGER=""
+OS_FAMILY="$(uname -s)"
+APT_UPDATED=0
+
+detect_pkg_manager() {
+  if has_cmd brew; then
+    PKG_MANAGER="brew"
+  elif has_cmd apt-get; then
+    PKG_MANAGER="apt"
+  elif has_cmd dnf; then
+    PKG_MANAGER="dnf"
+  elif has_cmd yum; then
+    PKG_MANAGER="yum"
+  elif has_cmd pacman; then
+    PKG_MANAGER="pacman"
+  elif has_cmd zypper; then
+    PKG_MANAGER="zypper"
+  elif has_cmd apk; then
+    PKG_MANAGER="apk"
+  fi
+}
+
+install_pkg() {
+  local pkg="$1"
+
+  case "$PKG_MANAGER" in
+    brew)
+      brew install "$pkg"
+      ;;
+    apt)
+      if [ "$APT_UPDATED" -eq 0 ]; then
+        $SUDO apt-get update
+        APT_UPDATED=1
+        record_updated "apt package index"
+      fi
+      $SUDO apt-get install -y "$pkg"
+      ;;
+    dnf)
+      $SUDO dnf install -y "$pkg"
+      ;;
+    yum)
+      $SUDO yum install -y "$pkg"
+      ;;
+    pacman)
+      $SUDO pacman -Sy --noconfirm "$pkg"
+      ;;
+    zypper)
+      $SUDO zypper --non-interactive install "$pkg"
+      ;;
+    apk)
+      $SUDO apk add --no-cache "$pkg"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+install_if_missing() {
+  local cmd_name="$1"
+  shift
+
+  if has_cmd "$cmd_name"; then
+    log "already installed: $cmd_name"
+    record_skipped "$cmd_name (already installed)"
+    return 0
+  fi
+
+  local pkg
+  for pkg in "$@"; do
+    if install_pkg "$pkg" >/dev/null 2>&1 && has_cmd "$cmd_name"; then
+      log "installed $cmd_name via package: $pkg"
+      record_installed "$cmd_name (package: $pkg)"
+      return 0
+    fi
+  done
+
+  log "failed to install $cmd_name with package candidates: $*"
+  record_failed "$cmd_name"
+  return 1
+}
+
+resolve_nvm_script_path() {
+  local candidates=(
+    "${NVM_DIR:-$HOME/.nvm}/nvm.sh"
+    "/opt/homebrew/opt/nvm/nvm.sh"
+    "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh"
+    "/usr/local/opt/nvm/nvm.sh"
+    "/usr/share/nvm/nvm.sh"
+  )
+  local p
+  for p in "${candidates[@]}"; do
+    if [ -s "$p" ]; then
+      echo "$p"
+      return 0
+    fi
+  done
+  return 1
+}
+
+ensure_nvm_and_node() {
+  local nvm_script=""
+
+  if nvm_script="$(resolve_nvm_script_path)"; then
+    record_skipped "nvm (already installed)"
+  else
+    if install_pkg nvm >/dev/null 2>&1; then
+      nvm_script="$(resolve_nvm_script_path || true)"
+    fi
+
+    if [ -z "$nvm_script" ]; then
+      if has_cmd curl; then
+        curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash >/dev/null 2>&1
+      elif has_cmd wget; then
+        wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash >/dev/null 2>&1
+      fi
+      nvm_script="$(resolve_nvm_script_path || true)"
+    fi
+
+    if [ -n "$nvm_script" ]; then
+      record_installed "nvm"
+    else
+      log "failed to install nvm"
+      record_failed "nvm"
+      return 1
+    fi
+  fi
+
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  # shellcheck disable=SC1090
+  . "$nvm_script"
+
+  if ! command -v nvm >/dev/null 2>&1; then
+    record_failed "nvm load"
+    return 1
+  fi
+
+  # Interpret "stable" as the latest LTS release for long-term consistency.
+  if nvm install --lts >/dev/null 2>&1; then
+    record_updated "node LTS installed via nvm"
+  else
+    record_failed "node install via nvm"
+    return 1
+  fi
+
+  if nvm alias default 'lts/*' >/dev/null 2>&1 && nvm use default >/dev/null 2>&1; then
+    record_updated "nvm default alias -> lts/*"
+  else
+    record_failed "nvm default alias setup"
+    return 1
+  fi
+}
+
+append_if_missing() {
+  local file="$1"
+  local marker="$2"
+  local content="$3"
+
+  touch "$file"
+  if grep -Fq "$marker" "$file"; then
+    record_skipped "$file (zsh fallback already configured)"
+    return
+  fi
+
+  printf '\n%s\n' "$content" >>"$file"
+  record_updated "$file (added zsh fallback)"
+}
+
+# ----------------------------
+# Zsh setup
+# ----------------------------
+
+configure_bash_fallback_to_zsh() {
+  local marker="# >>> chezmoi zsh fallback >>>"
+  local snippet='# >>> chezmoi zsh fallback >>>
+if [ -n "${BASH_VERSION:-}" ] && [ -n "${PS1:-}" ] && command -v zsh >/dev/null 2>&1; then
+  exec zsh -l
+fi
+# <<< chezmoi zsh fallback <<<'
+
+  append_if_missing "$HOME/.bash_profile" "$marker" "$snippet"
+  append_if_missing "$HOME/.profile" "$marker" "$snippet"
+}
+
+switch_default_shell_to_zsh() {
+  local zsh_path="$1"
+
+  if [ "${SHELL:-}" = "$zsh_path" ]; then
+    record_skipped "default shell switch (already zsh)"
+    return 0
+  fi
+
+  if ! has_cmd chsh; then
+    log "chsh not found; cannot switch default shell automatically"
+    record_failed "default shell switch (chsh missing)"
+    return 1
+  fi
+
+  if [ ! -t 0 ] || [ ! -t 1 ]; then
+    log "non-interactive session; skip chsh. Run manually: chsh -s $zsh_path $USER"
+    record_skipped "default shell switch (non-interactive)"
+    return 0
+  fi
+
+  if chsh -s "$zsh_path" "$USER"; then
+    record_updated "default shell -> $zsh_path"
+    return 0
+  fi
+
+  log "chsh failed or cancelled; keep current default shell"
+  record_failed "default shell switch"
+  return 1
+}
+
+ensure_zsh_shell() {
+  install_if_missing zsh zsh || return 1
+
+  local zsh_path
+  zsh_path="$(command -v zsh || true)"
+  if [ -z "$zsh_path" ]; then
+    log "zsh install appears to have failed"
+    record_failed "zsh path detection"
+    return 1
+  fi
+  log "zsh path: $zsh_path"
+
+  if [ -f /etc/shells ] && ! grep -qx "$zsh_path" /etc/shells; then
+    log "zsh is not listed in /etc/shells; default shell switch may fail"
+    record_skipped "/etc/shells validation (zsh not listed)"
+  fi
+
+  switch_default_shell_to_zsh "$zsh_path" || true
+  configure_bash_fallback_to_zsh
+}
+
+# ----------------------------
+# Zim setup
+# ----------------------------
+
+install_zimfw() {
+  local zim_home="${ZDOTDIR:-$HOME}/.zim"
+  local zimfw="${zim_home}/zimfw.zsh"
+  local zimrc="${ZDOTDIR:-$HOME}/.zimrc"
+  local zim_url="https://github.com/zimfw/zimfw/releases/latest/download/zimfw.zsh"
+
+  if [ ! -f "$zimfw" ]; then
+    mkdir -p "$zim_home"
+    if has_cmd curl; then
+      curl -fsSL --create-dirs -o "$zimfw" "$zim_url"
+      record_installed "zimfw"
+    elif has_cmd wget; then
+      wget -nv -O "$zimfw" "$zim_url"
+      record_installed "zimfw"
+    else
+      log "curl/wget not found, skip zimfw install"
+      record_failed "zimfw install (curl/wget missing)"
+      return 1
+    fi
+  else
+    record_skipped "zimfw (already installed)"
+  fi
+
+  if [ -f "$zimrc" ] && has_cmd zsh; then
+    ZDOTDIR="${ZDOTDIR:-$HOME}" ZIM_HOME="$zim_home" zsh -lc 'source "${ZIM_HOME}/zimfw.zsh" init'
+    record_updated "zim modules (init from ~/.zimrc)"
+  else
+    record_skipped "zim module init (~/.zimrc missing or zsh missing)"
+  fi
+}
+
+# ----------------------------
+# FZF shell integration
+# ----------------------------
+
+configure_fzf_shell_integration() {
+  if ! has_cmd fzf; then
+    record_skipped "fzf shell integration (fzf not installed)"
+    return
+  fi
+
+  local prefix=""
+  if has_cmd brew; then
+    prefix="$(brew --prefix 2>/dev/null || true)"
+  fi
+
+  if [ -n "$prefix" ] && [ -x "$prefix/opt/fzf/install" ]; then
+    "$prefix/opt/fzf/install" --key-bindings --completion --no-update-rc
+    record_updated "fzf shell integration"
+  else
+    record_skipped "fzf shell integration (installer not found)"
+  fi
+}
+
+# ----------------------------
+# Main
+# ----------------------------
+
+main() {
+  detect_pkg_manager
+  if [ -z "$PKG_MANAGER" ]; then
+    log "no supported package manager found on ${OS_FAMILY}"
+    record_failed "package manager detection"
+    print_summary
+    return 1
+  fi
+
+  log "os=${OS_FAMILY}, package-manager=${PKG_MANAGER}"
+  log "bash version=${BASH_VERSION}"
+  log "current SHELL=${SHELL:-unknown}"
+
+  install_if_missing git git || true
+  install_if_missing curl curl || true
+  install_if_missing wget wget || true
+  ensure_zsh_shell || true
+  install_if_missing vim vim || true
+  install_if_missing fzf fzf || true
+  install_if_missing zoxide zoxide || true
+  install_if_missing eza eza || true
+  install_if_missing bat bat batcat || true
+  install_if_missing tree tree || true
+  install_if_missing tldr tldr || true
+  ensure_nvm_and_node || true
+
+  if has_cmd exa; then
+    record_skipped "exa (already installed)"
+  elif install_pkg exa >/dev/null 2>&1; then
+    if has_cmd exa; then
+      record_installed "exa (optional)"
+    else
+      record_skipped "exa (installed package but command not found)"
+    fi
+  else
+    record_skipped "exa (optional package unavailable)"
+  fi
+
+  install_zimfw || true
+  configure_fzf_shell_integration
+
+  print_summary
+}
+
+main "$@"

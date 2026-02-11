@@ -1,3 +1,6 @@
+" ----------------------------
+" ----- General settings -----
+" ----------------------------
 " If you open this file in Vim, it'll be syntax highlighted for you.
 let mapleader=" "
 let maplocalleader=","
@@ -63,6 +66,20 @@ set smartcase
 " 在输入时启用搜索，而不是等到按回车键。
 set incsearch
 
+" Show partial commands in the last line of the screen. This is useful for
+" letting you know what you've typed so far when you're in the middle of a
+" multi-key command, like `d2w` or `:s/foo/bar/g`.
+" 在屏幕的最后一行显示部分命令。这对于让你知道在多键命令（如 `d2w` 或 `:s/foo/bar/g`）中已经输入了什么非常有用。
+set showcmd
+
+" Keep indentation behavior consistent when creating new lines.
+" 在创建新行时保持缩进行为一致。
+set smartindent
+
+" Use system clipboard.
+" 使用系统剪贴板。
+set clipboard+=unnamed,unnamedplus
+
 " Unbind some useless/annoying default key bindings.
 nmap Q <Nop> " 'Q' in normal mode enters Ex mode. You almost never want this.
 
@@ -112,6 +129,19 @@ nnoremap <F2> :set nu! nu?<CR>
 " 正常模式：行首、行尾光标移动按键
 nnoremap H ^
 nnoremap L $
+
+" 双击同一个方向键字母退出插入模式
+inoremap jj <Esc>
+inoremap jk <Esc>
+inoremap kk <Esc>
+
+" 缩短按键映射等待时间（让“双击”更像双击）
+set timeout
+set timeoutlen=300
+
+" ---------------------------
+" ----- Plugin settings -----
+" ---------------------------
 
 " NERDTree
 map <F3> :NERDTreeToggle<CR>
@@ -165,15 +195,9 @@ let g:NERDTrimTrailingWhitespace = 1
 " Enable NERDCommenterToggle to check all selected lines is commented or not
 let g:NERDToggleCheckAllLines = 1
 
-" 双击同一个方向键字母退出插入模式
-inoremap jj <Esc>
-inoremap jk <Esc>
-inoremap kk <Esc>
-
-" 缩短按键映射等待时间（让“双击”更像双击）
-set timeout
-set timeoutlen=300
-
+" ----------------------------
+" ----- Plugin management ----
+" ----------------------------
 " Vim-Plug
 call plug#begin('~/.vim/plugged') 
 " Plug 'git@github.com:preservim/nerdtree.git'
