@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() { printf '[install-zim] %s\n' "$1"; }
+
+INSTALLED=()
+UPDATED=()
+SKIPPED=()
+FAILED=()
+add_i() { INSTALLED+=("$1"); }
+add_u() { UPDATED+=("$1"); }
+add_s() { SKIPPED+=("$1"); }
+add_f() { FAILED+=("$1"); }
+
+print_list() {
+  local title="$1"; shift || true
+  printf '\n[install-zim] %s\n' "$title"
+  if [ "$#" -eq 0 ]; then
+    echo "  - (none)"
+    return
+  fi
+  local x
+  for x in "$@"; do echo "  - $x"; done
+}
+
+summary() {
+  print_list "Installed" "${INSTALLED[@]}"
+  print_list "Updated" "${UPDATED[@]}"
+  print_list "Skipped" "${SKIPPED[@]}"
+  print_list "Failed" "${FAILED[@]}"
+  [ "${#FAILED[@]}" -eq 0 ]
+}
+
+has_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+main() {
+  if ! has_cmd zsh; then
+    add_f "zsh missing"
+    summary
+    return 1
+  fi
+
+  local zim_home="${ZDOTDIR:-$HOME}/.zim"
+  local zimfw="${zim_home}/zimfw.zsh"
+  local zimrc="${ZDOTDIR:-$HOME}/.zimrc"
+  local url="https://github.com/zimfw/zimfw/releases/latest/download/zimfw.zsh"
+
+  if [ ! -f "$zimfw" ]; then
+    mkdir -p "$zim_home"
+    if has_cmd curl; then
+      curl -fsSL --create-dirs -o "$zimfw" "$url"
+      add_i "zimfw"
+    elif has_cmd wget; then
+      wget -nv -O "$zimfw" "$url"
+      add_i "zimfw"
+    else
+      add_f "zimfw install (curl/wget missing)"
+      summary
+      return 1
+    fi
+  else
+    add_s "zimfw (already installed)"
+  fi
+
+  if [ -f "$zimrc" ]; then
+    ZDOTDIR="${ZDOTDIR:-$HOME}" ZIM_HOME="$zim_home" zsh -lc 'source "${ZIM_HOME}/zimfw.zsh" init'
+    add_u "zim modules (init from ~/.zimrc)"
+  else
+    add_s "zim module init (~/.zimrc missing)"
+  fi
+
+  summary
+}
+
+main "$@"

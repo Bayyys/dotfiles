@@ -8,7 +8,9 @@ Personal dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 - `private_dot_zimrc` - Zim configuration file, which includes the public `dot_zimrc` and adds private settings.
 - `dot_vimrc` - Vim configuration file.
 - `dot_ideavimrc` - IdeaVim configuration file for JetBrains IDEs.
-- `run_once_10_install_cli_tools.sh.tmpl` - Install required CLI tools, ensure `zsh` exists, install/init `zimfw`, install `nvm`, and set default Node to LTS.
+- `run_once_10_install_cli_tools.sh.tmpl` - Install core CLI tools and shell integrations.
+- `run_once_11_install_zimfw.sh.tmpl` - Install and initialize `zimfw` modules.
+- `run_once_12_install_nvm_node.sh.tmpl` - Install `nvm`, install Node LTS, and set default Node alias.
 - `run_once_20_install_vim_plugins.sh.tmpl` - Install `vim-plug` and plugins declared in `dot_vimrc`.
 
 ## Install order
@@ -16,7 +18,9 @@ Personal dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 The scripts are prefixed with numbers to enforce execution order:
 
 1. `run_once_10_install_cli_tools.sh.tmpl`
-2. `run_once_20_install_vim_plugins.sh.tmpl`
+2. `run_once_11_install_zimfw.sh.tmpl`
+3. `run_once_12_install_nvm_node.sh.tmpl`
+4. `run_once_20_install_vim_plugins.sh.tmpl`
 
 Notes:
 - `dot_ideavimrc` requires JetBrains IDE + IdeaVim plugin.
@@ -37,11 +41,13 @@ If `curl` is unavailable:
 
 ```bash
 sh -c "$(wget -qO- https://raw.githubusercontent.com/Bayyys/dotfiles/master/bootstrap.sh)"
+```
 
 `bootstrap.sh` installs `chezmoi` by OS policy:
 - macOS: Homebrew (`brew install chezmoi`)
 - Linux: tries `apt/dnf/yum/pacman/zypper/apk/brew`, then falls back to official install script
-```
+- Before installing `chezmoi`, bootstrap ensures `zsh` is installed and switched as default shell.
+- If zsh installation or shell switch fails, bootstrap exits and asks user to install from [zsh official site](https://www.zsh.org/).
 
 ### Bootstrap via git
 
@@ -58,7 +64,7 @@ chezmoi init <repo-url>
 chezmoi apply
 ```
 
-On first apply, `run_once_10_install_cli_tools.sh.tmpl` and `run_once_20_install_vim_plugins.sh.tmpl` will run automatically.
+On first apply, `run_once_10_install_cli_tools.sh.tmpl`, `run_once_11_install_zimfw.sh.tmpl`, `run_once_12_install_nvm_node.sh.tmpl`, and `run_once_20_install_vim_plugins.sh.tmpl` will run automatically.
 
 ### Update dotfiles
 

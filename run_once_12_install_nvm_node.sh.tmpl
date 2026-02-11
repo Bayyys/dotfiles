@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() { printf '[install-node] %s\n' "$1"; }
+has_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+INSTALLED=()
+UPDATED=()
+SKIPPED=()
+FAILED=()
+add_i() { INSTALLED+=("$1"); }
+add_u() { UPDATED+=("$1"); }
+add_s() { SKIPPED+=("$1"); }
+add_f() { FAILED+=("$1"); }
+
+print_list() {
+  local title="$1"; shift || true
+  printf '\n[install-node] %s\n' "$title"
+  if [ "$#" -eq 0 ]; then
+    echo "  - (none)"
+    return
+  fi
+  local x
+  for x in "$@"; do echo "  - $x"; done
+}
+
+summary() {
+  print_list "Installed" "${INSTALLED[@]}"
+  print_list "Updated" "${UPDATED[@]}"
+  print_list "Skipped" "${SKIPPED[@]}"
+  print_list "Failed" "${FAILED[@]}"
+  [ "${#FAILED[@]}" -eq 0 ]
+}
+
+SUDO=""
+if [ "$(id -u)" -ne 0 ] && has_cmd sudo; then
+  SUDO="sudo"
+fi
+
+install_pkg_nvm() {
+  if has_cmd brew; then
+    brew install nvm && return 0
+  elif has_cmd apt-get; then
+    $SUDO apt-get update >/dev/null 2>&1 || true
+    $SUDO apt-get install -y nvm && return 0
+  elif has_cmd dnf; then
+    $SUDO dnf install -y nvm && return 0
+  elif has_cmd yum; then
+    $SUDO yum install -y nvm && return 0
+  elif has_cmd pacman; then
+    $SUDO pacman -Sy --noconfirm --needed nvm && return 0
+  elif has_cmd zypper; then
+    $SUDO zypper --non-interactive install nvm && return 0
+  elif has_cmd apk; then
+    $SUDO apk add --no-cache nvm && return 0
+  fi
+  return 1
+}
+
+resolve_nvm_script() {
+  local nvm_dir="${NVM_DIR:-$HOME/.nvm}"
+  local candidates=(
+    "$nvm_dir/nvm.sh"
+    "/opt/homebrew/opt/nvm/nvm.sh"
+    "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh"
+    "/usr/local/opt/nvm/nvm.sh"
+    "/usr/share/nvm/nvm.sh"
+  )
+  local p
+  for p in "${candidates[@]}"; do
+    [ -s "$p" ] && { echo "$p"; return 0; }
+  done
+  return 1
+}
+
+install_nvm_fallback() {
+  if has_cmd curl; then
+    curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash >/dev/null 2>&1
+    return 0
+  elif has_cmd wget; then
+    wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash >/dev/null 2>&1
+    return 0
+  fi
+  return 1
+}
+
+main() {
+  local nvm_script=""
+  nvm_script="$(resolve_nvm_script || true)"
+
+  if [ -n "$nvm_script" ]; then
+    add_s "nvm (already installed)"
+  else
+    install_pkg_nvm >/dev/null 2>&1 || true
+    nvm_script="$(resolve_nvm_script || true)"
+
+    if [ -z "$nvm_script" ]; then
+      install_nvm_fallback || true
+      nvm_script="$(resolve_nvm_script || true)"
+    fi
+
+    if [ -n "$nvm_script" ]; then
+      add_i "nvm"
+    else
+      add_f "nvm install"
+      summary
+      return 1
+    fi
+  fi
+
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  # shellcheck disable=SC1090
+  . "$nvm_script"
+
+  if ! command -v nvm >/dev/null 2>&1; then
+    add_f "nvm load"
+    summary
+    return 1
+  fi
+
+  if nvm install --lts >/dev/null 2>&1; then
+    add_u "node LTS installed via nvm"
+  else
+    add_f "node install via nvm"
+  fi
+
+  if nvm alias default 'lts/*' >/dev/null 2>&1 && nvm use default >/dev/null 2>&1; then
+    add_u "nvm default alias -> lts/*"
+  else
+    add_f "nvm default alias setup"
+  fi
+
+  summary
+}
+
+main "$@"
