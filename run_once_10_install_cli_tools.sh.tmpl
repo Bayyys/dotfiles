@@ -287,8 +287,51 @@ switch_default_shell_to_zsh() {
   return 1
 }
 
+install_zsh_with_fallbacks() {
+  if has_cmd zsh; then
+    record_skipped "zsh (already installed)"
+    return 0
+  fi
+
+  # Try selected package manager first.
+  if install_pkg zsh >/dev/null 2>&1 && has_cmd zsh; then
+    record_installed "zsh (package: ${PKG_MANAGER})"
+    return 0
+  fi
+
+  # Fallback installers for heterogeneous environments.
+  if has_cmd apt-get; then
+    $SUDO apt-get update >/dev/null 2>&1 || true
+    $SUDO apt-get install -y zsh >/dev/null 2>&1 || true
+  elif has_cmd apt; then
+    $SUDO apt update >/dev/null 2>&1 || true
+    $SUDO apt install -y zsh >/dev/null 2>&1 || true
+  elif has_cmd dnf; then
+    $SUDO dnf install -y zsh >/dev/null 2>&1 || true
+  elif has_cmd yum; then
+    $SUDO yum install -y zsh >/dev/null 2>&1 || true
+  elif has_cmd pacman; then
+    $SUDO pacman -Sy --noconfirm --needed zsh >/dev/null 2>&1 || true
+  elif has_cmd zypper; then
+    $SUDO zypper --non-interactive install zsh >/dev/null 2>&1 || true
+  elif has_cmd apk; then
+    $SUDO apk add --no-cache zsh >/dev/null 2>&1 || true
+  elif has_cmd brew; then
+    brew install zsh >/dev/null 2>&1 || true
+  fi
+
+  if has_cmd zsh; then
+    record_installed "zsh (fallback installer)"
+    return 0
+  fi
+
+  log "failed to install zsh via all known installers"
+  record_failed "zsh install"
+  return 1
+}
+
 ensure_zsh_shell() {
-  install_if_missing zsh zsh || return 1
+  install_zsh_with_fallbacks || return 1
 
   local zsh_path
   zsh_path="$(command -v zsh || true)"
@@ -386,7 +429,11 @@ main() {
   install_if_missing git git || true
   install_if_missing curl curl || true
   install_if_missing wget wget || true
-  ensure_zsh_shell || true
+  if ! ensure_zsh_shell; then
+    log "zsh is required; aborting bootstrap"
+    print_summary
+    return 1
+  fi
   install_if_missing vim vim || true
   install_if_missing fzf fzf || true
   install_if_missing zoxide zoxide || true
