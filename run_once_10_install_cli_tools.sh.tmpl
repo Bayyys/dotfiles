@@ -26,6 +26,17 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+canonical_path() {
+  local p="$1"
+  if has_cmd readlink; then
+    readlink -f "$p" 2>/dev/null && return 0
+  fi
+  if has_cmd realpath; then
+    realpath "$p" 2>/dev/null && return 0
+  fi
+  printf '%s\n' "$p"
+}
+
 INSTALLED_ITEMS=()
 UPDATED_ITEMS=()
 SKIPPED_ITEMS=()
@@ -287,6 +298,53 @@ switch_default_shell_to_zsh() {
   return 1
 }
 
+shell_in_etc_shells() {
+  local target="$1"
+  local target_real
+  target_real="$(canonical_path "$target")"
+  local line line_real
+
+  [ -f /etc/shells ] || return 1
+
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    case "$line" in
+      \#*) continue ;;
+    esac
+    line_real="$(canonical_path "$line")"
+    if [ "$line" = "$target" ] || [ "$line_real" = "$target_real" ]; then
+      return 0
+    fi
+  done < /etc/shells
+
+  return 1
+}
+
+ensure_shell_registered() {
+  local zsh_path="$1"
+  if shell_in_etc_shells "$zsh_path"; then
+    record_skipped "/etc/shells registration (already present)"
+    return 0
+  fi
+
+  if [ -w /etc/shells ]; then
+    printf '%s\n' "$zsh_path" >> /etc/shells
+    record_updated "/etc/shells (added $zsh_path)"
+    return 0
+  fi
+
+  if [ -n "$SUDO" ]; then
+    if printf '%s\n' "$zsh_path" | $SUDO tee -a /etc/shells >/dev/null 2>&1; then
+      record_updated "/etc/shells (added $zsh_path via sudo)"
+      return 0
+    fi
+  fi
+
+  log "zsh is not listed in /etc/shells and cannot be auto-registered"
+  record_failed "/etc/shells registration"
+  return 1
+}
+
 install_zsh_with_fallbacks() {
   if has_cmd zsh; then
     record_skipped "zsh (already installed)"
@@ -342,9 +400,8 @@ ensure_zsh_shell() {
   fi
   log "zsh path: $zsh_path"
 
-  if [ -f /etc/shells ] && ! grep -qx "$zsh_path" /etc/shells; then
-    log "zsh is not listed in /etc/shells; default shell switch may fail"
-    record_skipped "/etc/shells validation (zsh not listed)"
+  if [ -f /etc/shells ]; then
+    ensure_shell_registered "$zsh_path" || true
   fi
 
   switch_default_shell_to_zsh "$zsh_path" || true
