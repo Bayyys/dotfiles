@@ -34,11 +34,23 @@ print_list() {
 }
 
 print_summary() {
+  local restore_nounset=0
+  case $- in
+    *u*)
+      restore_nounset=1
+      set +u
+      ;;
+  esac
+
   print_section "Summary"
   print_list "Installed" "${INSTALLED_ITEMS[@]}"
   print_list "Updated" "${UPDATED_ITEMS[@]}"
   print_list "Skipped" "${SKIPPED_ITEMS[@]}"
   print_list "Failed" "${FAILED_ITEMS[@]}"
+
+  if [ "$restore_nounset" -eq 1 ]; then
+    set -u
+  fi
 }
 
 main() {
