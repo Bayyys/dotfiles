@@ -24,12 +24,39 @@ print_list() {
   for x in "$@"; do echo "  - $x"; done
 }
 
+print_array_list() {
+  local title="$1"
+  local array_name="$2"
+  local count=0
+  eval "count=\${#${array_name}[@]}"
+  if [ "$count" -gt 0 ]; then
+    eval "print_list \"\$title\" \"\${${array_name}[@]}\""
+  else
+    print_list "$title"
+  fi
+}
+
 summary() {
-  print_list "Installed" "${INSTALLED[@]}"
-  print_list "Updated" "${UPDATED[@]}"
-  print_list "Skipped" "${SKIPPED[@]}"
-  print_list "Failed" "${FAILED[@]}"
-  [ "${#FAILED[@]}" -eq 0 ]
+  local restore_nounset=0
+  local failed_count=0
+  case $- in
+    *u*)
+      restore_nounset=1
+      set +u
+      ;;
+  esac
+
+  print_array_list "Installed" "INSTALLED"
+  print_array_list "Updated" "UPDATED"
+  print_array_list "Skipped" "SKIPPED"
+  print_array_list "Failed" "FAILED"
+  eval "failed_count=\${#FAILED[@]}"
+
+  if [ "$restore_nounset" -eq 1 ]; then
+    set -u
+  fi
+
+  [ "$failed_count" -eq 0 ]
 }
 
 SUDO=""
