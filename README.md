@@ -9,7 +9,7 @@ Personal dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 - `dot_vimrc` - Vim configuration file.
 - `dot_ideavimrc` - IdeaVim configuration file for JetBrains IDEs.
 - `run_once_10_install_cli_tools.sh.tmpl` - Install core CLI tools and shell integrations.
-- `run_once_11_install_zimfw.sh.tmpl` - Install and initialize `zimfw` modules.
+- `run_onchange_11_install_zimfw.sh.tmpl` - Install and initialize `zimfw` modules (reruns when script content changes and updates modules if already installed).
 - `run_once_12_install_nvm_node.sh.tmpl` - Install `nvm`, install Node LTS, and set default Node alias.
 - `run_once_20_install_vim_plugins.sh.tmpl` - Install `vim-plug` and plugins declared in `dot_vimrc`.
 
@@ -18,7 +18,7 @@ Personal dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 The scripts are prefixed with numbers to enforce execution order:
 
 1. `run_once_10_install_cli_tools.sh.tmpl`
-2. `run_once_11_install_zimfw.sh.tmpl`
+2. `run_onchange_11_install_zimfw.sh.tmpl`
 3. `run_once_12_install_nvm_node.sh.tmpl`
 4. `run_once_20_install_vim_plugins.sh.tmpl`
 
@@ -64,7 +64,7 @@ chezmoi init <repo-url>
 chezmoi apply
 ```
 
-On first apply, `run_once_10_install_cli_tools.sh.tmpl`, `run_once_11_install_zimfw.sh.tmpl`, `run_once_12_install_nvm_node.sh.tmpl`, and `run_once_20_install_vim_plugins.sh.tmpl` will run automatically.
+On first apply, `run_once_10_install_cli_tools.sh.tmpl`, `run_onchange_11_install_zimfw.sh.tmpl`, `run_once_12_install_nvm_node.sh.tmpl`, and `run_once_20_install_vim_plugins.sh.tmpl` will run automatically.
 
 ### Update dotfiles
 

@@ -46,6 +46,12 @@ summary() {
 
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+run_zim() {
+  local zim_home="$1"
+  local action="$2"
+  ZDOTDIR="${ZDOTDIR:-$HOME}" ZIM_HOME="$zim_home" zsh -lc "source \"\${ZIM_HOME}/zimfw.zsh\" $action"
+}
+
 main() {
   if ! has_cmd zsh; then
     add_f "zsh missing"
@@ -57,6 +63,7 @@ main() {
   local zimfw="${zim_home}/zimfw.zsh"
   local zimrc="${ZDOTDIR:-$HOME}/.zimrc"
   local url="https://github.com/zimfw/zimfw/releases/latest/download/zimfw.zsh"
+  local already_installed=0
 
   if [ ! -f "$zimfw" ]; then
     mkdir -p "$zim_home"
@@ -72,12 +79,24 @@ main() {
       return 1
     fi
   else
+    already_installed=1
     add_s "zimfw (already installed)"
   fi
 
   if [ -f "$zimrc" ]; then
-    ZDOTDIR="${ZDOTDIR:-$HOME}" ZIM_HOME="$zim_home" zsh -lc 'source "${ZIM_HOME}/zimfw.zsh" init'
-    add_u "zim modules (init from ~/.zimrc)"
+    if run_zim "$zim_home" init; then
+      add_u "zim modules (init from ~/.zimrc)"
+    else
+      add_f "zim modules init"
+    fi
+
+    if [ "$already_installed" -eq 1 ]; then
+      if run_zim "$zim_home" update; then
+        add_u "zim modules (update)"
+      else
+        add_s "zim modules update (failed, non-fatal)"
+      fi
+    fi
   else
     add_s "zim module init (~/.zimrc missing)"
   fi
