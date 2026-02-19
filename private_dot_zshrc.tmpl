@@ -191,8 +191,23 @@ _fzf_comprun() {
   esac
 }
 
-# ---- Common Alias ----
-alias ff='fzf --preview "bat --color=always {}"'
+# ---- Common Alias / Function ----
+ff() {
+  local target="${1:-.}"
+  if [[ ! -d "$target" ]]; then
+    echo "ff: directory not found: $target" >&2
+    return 1
+  fi
+
+  if command -v fd >/dev/null 2>&1; then
+    fd --type f . "$target" | fzf --preview 'bat --color=always --line-range :300 {}'
+  elif command -v rg >/dev/null 2>&1; then
+    rg --files "$target" | fzf --preview 'bat --color=always --line-range :300 {}'
+  else
+    find "$target" -type f | fzf --preview 'bat --color=always --line-range :300 {}'
+  fi
+}
+
 alias vz='vim ~/.zshrc'
 alias vzl='vim ~/.zshrc.local'
 alias sz='exec zsh'
