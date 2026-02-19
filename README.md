@@ -5,6 +5,7 @@ Personal dotfiles managed with [chezmoi](https://www.chezmoi.io/).
 ## Included configs
 
 - `private_dot_zshrc` - Zsh configuration file, which includes the public `dot_zshrc` and adds private settings.
+- `private_dot_zshrc.local` - Local machine overrides sourced by `private_dot_zshrc` (created by default; includes macOS VS Code `code` fallback).
 - `private_dot_zimrc` - Zim configuration file, which includes the public `dot_zimrc` and adds private settings.
 - `dot_vimrc` - Vim configuration file.
 - `dot_ideavimrc` - IdeaVim configuration file for JetBrains IDEs.

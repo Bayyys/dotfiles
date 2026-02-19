@@ -102,7 +102,7 @@ let &t_SI = "\e[6 q"  " insert: 竖线
 let &t_EI = "\e[2 q"  " normal: 方块
 
 " 高亮光标所在行。
-set cursorline
+" set cursorline
 
 " 显式括号匹配。
 set showmatch
@@ -163,7 +163,7 @@ let g:ctrlp_map = '<c-p>'
 let g:ctrlp_cmd = 'CtrlP'
 
 " vim-airline
-set laststatus=2  "永远显示状态栏
+set laststatus=1  "永远显示状态栏
 let g:airline_powerline_fonts = 1  " 支持 powerline 字体
 let g:airline#extensions#tabline#enabled = 1 " 显示窗口tab和buffer
 " let g:airline_theme='moloai'  " murmur配色不错
